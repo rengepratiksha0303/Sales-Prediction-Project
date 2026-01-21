@@ -1,70 +1,49 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import pickle
 import os
-
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error
 
 st.set_page_config(page_title="Sales Prediction App", layout="centered")
 st.title("📊 Sales Prediction App")
 
-# -------------------------------
-# LOAD DATA (CORRECT WAY)
-# -------------------------------
+# -----------------------------------
+# LOAD MODEL (SAFE WAY)
+# -----------------------------------
+@st.cache_resource
+def load_model():
+    model_path = os.path.join(os.path.dirname(__file__), "Sales.pkl")
+    with open(model_path, "rb") as file:
+        model = pickle.load(file)
+    return model
+
+model = load_model()
+
+# -----------------------------------
+# OPTIONAL: LOAD DATA FOR DISPLAY
+# -----------------------------------
 @st.cache_data
 def load_data():
-    file_path = os.path.join(os.path.dirname(__file__), "sales_data.csv")
-    df = pd.read_csv(file_path)
-    return df
+    data_path = os.path.join(os.path.dirname(__file__), "sales_data.csv")
+    if os.path.exists(data_path):
+        return pd.read_csv(data_path)
+    return None
 
 df = load_data()
 
-# -------------------------------
-# DATA PREVIEW
-# -------------------------------
-st.subheader("🔍 Dataset Preview")
-st.dataframe(df.head())
+if df is not None:
+    st.subheader("🔍 Dataset Preview")
+    st.dataframe(df.head())
 
-# -------------------------------
-# EDA
-# -------------------------------
-st.subheader("📈 Sales Distribution")
-fig, ax = plt.subplots()
-ax.hist(df["Sales"], bins=10)
-ax.set_xlabel("Sales")
-ax.set_ylabel("Frequency")
-st.pyplot(fig)
-
-# -------------------------------
-# MODEL
-# -------------------------------
-X = df[["Quantity", "Price"]]
-y = df["Sales"]
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-
-model = LinearRegression()
-model.fit(X_train, y_train)
-
-y_pred = model.predict(X_test)
-rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-
-st.subheader("📊 Model Evaluation")
-st.write(f"**RMSE:** {rmse:.2f}")
-
-# -------------------------------
+# -----------------------------------
 # USER INPUT
-# -------------------------------
+# -----------------------------------
 st.subheader("🧮 Predict Sales")
 
-quantity = st.number_input("Enter Quantity", min_value=1, value=10)
-price = st.number_input("Enter Price", min_value=1, value=50)
+quantity = st.number_input("Enter Quantity Sold", min_value=1, value=10)
+price = st.number_input("Enter Price per Unit", min_value=1, value=50)
 
-if st.button("Predict"):
-    result = model.predict([[quantity, price]])
-    st.success(f"💰 Predicted Sales: {result[0]:.2f}")
+if st.button("Predict Sales"):
+    input_data = np.array([[quantity, price]])
+    prediction = model.predict(input_data)
+    st.success(f"💰 Predicted Sales Amount: {prediction[0]:.2f}")
